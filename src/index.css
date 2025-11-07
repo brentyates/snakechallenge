@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  --color-snake-primary: #10b981;
+  --color-snake-secondary: #059669;
+  --color-snake-food: #ef4444;
+  --color-snake-bg: #0f172a;
+  --color-snake-board: #1e293b;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-snake-bg);
+    color: white;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
