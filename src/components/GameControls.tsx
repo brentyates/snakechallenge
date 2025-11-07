@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 
 export function GameControls() {
-  const { isRunning, speed, startGame, stopGame, resetGame, setSpeed, compileAndSetScript, skipMoves } = useGameStore();
+  const { isRunning, speed, isSkipping, skipProgress, startGame, stopGame, resetGame, setSpeed, compileAndSetScript, skipMoves } = useGameStore();
   const [movesToSkip, setMovesToSkip] = useState(100);
   const [showOptions, setShowOptions] = useState(false);
 
@@ -24,6 +24,7 @@ export function GameControls() {
         <button
           onClick={isRunning ? stopGame : handleStart}
           className="btn-primary"
+          disabled={isSkipping}
         >
           {isRunning ? 'Stop' : 'Start'}
         </button>
@@ -31,7 +32,7 @@ export function GameControls() {
         <button
           onClick={resetGame}
           className="btn-secondary"
-          disabled={isRunning}
+          disabled={isRunning || isSkipping}
         >
           Reset
         </button>
@@ -39,6 +40,7 @@ export function GameControls() {
         <button
           onClick={() => setShowOptions(!showOptions)}
           className="btn-secondary"
+          disabled={isSkipping}
         >
           Options {showOptions ? '▲' : '▼'}
         </button>
@@ -46,13 +48,30 @@ export function GameControls() {
         <button
           onClick={compileAndSetScript}
           className="btn-secondary"
-          disabled={isRunning}
+          disabled={isRunning || isSkipping}
         >
           Set Script
         </button>
       </div>
 
-      {showOptions && (
+      {/* Skip Progress Bar */}
+      {isSkipping && (
+        <div className="stat-card">
+          <div className="mb-2 text-sm text-gray-300">
+            Skipping moves... {skipProgress}%
+          </div>
+          <div className="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
+            <div
+              className="bg-snake-primary h-full transition-all duration-200 flex items-center justify-center text-xs font-bold"
+              style={{ width: `${skipProgress}%` }}
+            >
+              {skipProgress > 10 && <span className="text-white">{skipProgress}%</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showOptions && !isSkipping && (
         <div className="stat-card space-y-4">
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-300">
@@ -93,6 +112,9 @@ export function GameControls() {
                 Skip
               </button>
             </div>
+            <p className="text-xs text-gray-500 mt-2">
+              💡 Skip runs in background - UI stays responsive!
+            </p>
           </div>
         </div>
       )}

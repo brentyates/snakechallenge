@@ -1,25 +1,24 @@
 import { useGameStore } from '../store/gameStore';
 
 export function GameStats() {
-  const game = useGameStore((state) => state.game);
+  const gameState = useGameStore((state) => state.gameState);
   useGameStore((state) => state.tick); // Subscribe to tick for updates
 
-  const state = game?.getState();
-  const config = game?.getConfig();
+  if (!gameState) return null;
 
-  if (!state || !config) return null;
-
-  const percentComplete = ((state.snake.length / (config.boardWidth * config.boardHeight)) * 100).toFixed(2);
+  const boardWidth = 40;
+  const boardHeight = 30;
+  const percentComplete = ((gameState.snake.length / (boardWidth * boardHeight)) * 100).toFixed(2);
 
   const stats = [
-    { label: 'Direction', value: state.direction },
-    { label: 'Board Size', value: `${config.boardWidth} x ${config.boardHeight}` },
-    { label: 'Head', value: `${state.snake[0]?.x ?? 0}, ${state.snake[0]?.y ?? 0}` },
-    { label: 'Food', value: `${state.food.x}, ${state.food.y}` },
-    { label: 'Moves', value: state.moves },
-    { label: 'Food Eaten', value: state.foodEaten },
-    { label: 'Score', value: state.score.toFixed(2) },
-    { label: 'Snake Length', value: state.snake.length },
+    { label: 'Direction', value: gameState.direction },
+    { label: 'Board Size', value: `${boardWidth} x ${boardHeight}` },
+    { label: 'Head', value: `${gameState.snake[0]?.x ?? 0}, ${gameState.snake[0]?.y ?? 0}` },
+    { label: 'Food', value: `${gameState.food.x}, ${gameState.food.y}` },
+    { label: 'Moves', value: gameState.moves },
+    { label: 'Food Eaten', value: gameState.foodEaten },
+    { label: 'Score', value: gameState.score.toFixed(2) },
+    { label: 'Snake Length', value: gameState.snake.length },
     { label: '% Complete', value: `${percentComplete}%` },
   ];
 

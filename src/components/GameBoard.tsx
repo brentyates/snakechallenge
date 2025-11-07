@@ -4,19 +4,20 @@ import type { Position } from '../types/game';
 
 export function GameBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const game = useGameStore((state) => state.game);
-  const tick = useGameStore((state) => state.tick); // Subscribe to tick for updates
+  const gameState = useGameStore((state) => state.gameState);
+  const tick = useGameStore((state) => state.tick);
 
-  // Redraw canvas whenever tick changes (i.e., on every game update)
+  const boardWidth = 40;
+  const boardHeight = 30;
+  const cellSize = 8;
+
+  // Redraw canvas whenever tick changes
   useEffect(() => {
-    if (!canvasRef.current || !game) return;
+    if (!canvasRef.current || !gameState) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    const config = game.getConfig();
-    const state = game.getState();
 
     // Clear canvas
     ctx.fillStyle = '#1e293b';
@@ -25,23 +26,23 @@ export function GameBoard() {
     // Draw grid
     ctx.strokeStyle = '#334155';
     ctx.lineWidth = 0.5;
-    for (let x = 0; x <= config.boardWidth; x++) {
+    for (let x = 0; x <= boardWidth; x++) {
       ctx.beginPath();
-      ctx.moveTo(x * config.cellSize, 0);
-      ctx.lineTo(x * config.cellSize, canvas.height);
+      ctx.moveTo(x * cellSize, 0);
+      ctx.lineTo(x * cellSize, canvas.height);
       ctx.stroke();
     }
-    for (let y = 0; y <= config.boardHeight; y++) {
+    for (let y = 0; y <= boardHeight; y++) {
       ctx.beginPath();
-      ctx.moveTo(0, y * config.cellSize);
-      ctx.lineTo(canvas.width, y * config.cellSize);
+      ctx.moveTo(0, y * cellSize);
+      ctx.lineTo(canvas.width, y * cellSize);
       ctx.stroke();
     }
 
     const drawCell = (pos: Position, color: string, rounded = false) => {
-      const x = pos.x * config.cellSize;
-      const y = pos.y * config.cellSize;
-      const size = config.cellSize;
+      const x = pos.x * cellSize;
+      const y = pos.y * cellSize;
+      const size = cellSize;
 
       if (rounded) {
         const radius = size / 2;
@@ -56,11 +57,11 @@ export function GameBoard() {
     };
 
     // Draw food
-    drawCell(state.food, '#ef4444', true);
+    drawCell(gameState.food, '#ef4444', true);
 
     // Draw snake with gradient
-    state.snake.forEach((segment, index) => {
-      const brightness = 255 - Math.floor((index / state.snake.length) * 100);
+    gameState.snake.forEach((segment, index) => {
+      const brightness = 255 - Math.floor((index / gameState.snake.length) * 100);
       const color = index === 0
         ? '#10b981' // Head
         : `rgb(${Math.floor(brightness * 0.06)}, ${brightness}, ${Math.floor(brightness * 0.5)})`;
@@ -68,7 +69,7 @@ export function GameBoard() {
     });
 
     // Draw game over message
-    if (state.isGameOver) {
+    if (gameState.isGameOver) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -78,19 +79,17 @@ export function GameBoard() {
       ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 20);
 
       ctx.font = '16px sans-serif';
-      ctx.fillText(`Score: ${state.score.toFixed(2)}`, canvas.width / 2, canvas.height / 2 + 10);
-      ctx.fillText(`Food Eaten: ${state.foodEaten}`, canvas.width / 2, canvas.height / 2 + 35);
+      ctx.fillText(`Score: ${gameState.score.toFixed(2)}`, canvas.width / 2, canvas.height / 2 + 10);
+      ctx.fillText(`Food Eaten: ${gameState.foodEaten}`, canvas.width / 2, canvas.height / 2 + 35);
     }
-  }, [game, tick]); // Redraw when game or tick changes
-
-  const config = game?.getConfig() || { boardWidth: 40, boardHeight: 30, cellSize: 8 };
+  }, [gameState, tick]);
 
   return (
     <div className="flex flex-col items-center">
       <canvas
         ref={canvasRef}
-        width={config.boardWidth * config.cellSize}
-        height={config.boardHeight * config.cellSize}
+        width={boardWidth * cellSize}
+        height={boardHeight * cellSize}
         className="game-board"
       />
     </div>

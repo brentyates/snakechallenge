@@ -1,15 +1,17 @@
 import { create } from 'zustand';
-import { SnakeGame } from '../engine/SnakeGame';
 import { Direction } from '../types/game';
-import type { GameConfig, UserScriptFunction } from '../types/game';
+import type { GameConfig, GameState } from '../types/game';
 
 interface GameStore {
-  game: SnakeGame | null;
+  worker: Worker | null;
+  gameState: GameState | null;
   isRunning: boolean;
   speed: number;
   userCode: string;
   animationFrameId: number | null;
-  tick: number; // Increments on each game loop to trigger re-renders
+  tick: number;
+  isSkipping: boolean;
+  skipProgress: number;
 
   initGame: (config: GameConfig) => void;
   startGame: () => void;
@@ -60,44 +62,126 @@ function main(ctx) {
 `;
 
 export const useGameStore = create<GameStore>((set, get) => ({
-  game: null,
+  worker: null,
+  gameState: null,
   isRunning: false,
   speed: DEFAULT_CONFIG.speed,
   userCode: DEFAULT_USER_CODE,
   animationFrameId: null,
   tick: 0,
+  isSkipping: false,
+  skipProgress: 0,
 
   initGame: (config: GameConfig) => {
-    const game = new SnakeGame(config);
-    set({ game });
+    // Terminate existing worker if any (prevent memory leaks)
+    const existingWorker = get().worker;
+    if (existingWorker) {
+      existingWorker.terminate();
+    }
+
+    // Create worker
+    const worker = new Worker(
+      new URL('../workers/gameWorker.ts', import.meta.url),
+      { type: 'module' }
+    );
+
+    // Set up message handler
+    worker.onmessage = (event) => {
+      const { type, state, current, total, error } = event.data;
+
+      switch (type) {
+        case 'INITIALIZED':
+          console.log('Worker initialized');
+          break;
+
+        case 'STARTED':
+        case 'STATE_UPDATE':
+        case 'RESET_COMPLETE':
+          set({ gameState: state, tick: get().tick + 1 });
+          if (state.isGameOver) {
+            set({ isRunning: false });
+          }
+          break;
+
+        case 'SKIP_PROGRESS':
+          set({
+            gameState: state,
+            skipProgress: Math.floor((current / total) * 100),
+            tick: get().tick + 1,
+          });
+          break;
+
+        case 'SKIP_COMPLETE':
+          set({
+            gameState: state,
+            isSkipping: false,
+            skipProgress: 100,
+            tick: get().tick + 1,
+          });
+          // Resume normal game loop if was running before skip
+          // Check both isRunning flag and that game isn't over
+          if (get().isRunning && !state.isGameOver) {
+            // Small delay to ensure state is settled
+            setTimeout(() => {
+              // Double-check still running (user might have clicked stop)
+              if (get().isRunning) {
+                const { startGame } = get();
+                startGame();
+              }
+            }, 100);
+          }
+          break;
+
+        case 'SCRIPT_SET':
+          console.log('Script compiled successfully');
+          break;
+
+        case 'SCRIPT_ERROR':
+          console.error('Script error:', error);
+          alert('Error in your script: ' + error);
+          break;
+
+        default:
+          console.warn('Unknown message type:', type);
+      }
+    };
+
+    worker.onerror = (error) => {
+      console.error('Worker error:', error);
+    };
+
+    // Initialize worker
+    worker.postMessage({ type: 'INIT', payload: { config } });
+
+    set({ worker });
   },
 
   startGame: () => {
-    const { game, animationFrameId } = get();
-    if (!game) return;
+    const { worker, animationFrameId, isSkipping } = get();
+    if (!worker || isSkipping) return;
 
     // Cancel any existing animation frame
     if (animationFrameId) {
       cancelAnimationFrame(animationFrameId);
     }
 
-    game.reset();
-    game.resume();
-    set({ isRunning: true });
+    // Reset game
+    worker.postMessage({ type: 'START' });
+    set({ isRunning: true, tick: 0 });
 
-    const gameLoop = (timestamp: number) => {
-      const { game, isRunning } = get();
-      if (!game || !isRunning) return;
+    const gameLoop = () => {
+      const { worker, isRunning, speed, isSkipping } = get();
+      if (!worker || !isRunning || isSkipping) return;
 
-      game.update(timestamp);
-      set({ tick: get().tick + 1 }); // Increment tick to trigger re-renders
+      // Send update message to worker
+      worker.postMessage({ type: 'UPDATE' });
 
-      if (!game.getState().isGameOver) {
+      // Continue loop based on speed
+      const delay = 1000 / speed;
+      setTimeout(() => {
         const frameId = requestAnimationFrame(gameLoop);
         set({ animationFrameId: frameId });
-      } else {
-        set({ isRunning: false, animationFrameId: null });
-      }
+      }, delay);
     };
 
     const frameId = requestAnimationFrame(gameLoop);
@@ -105,10 +189,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   stopGame: () => {
-    const { game, animationFrameId } = get();
-    if (game) {
-      game.pause();
-    }
+    const { animationFrameId } = get();
     if (animationFrameId) {
       cancelAnimationFrame(animationFrameId);
     }
@@ -116,29 +197,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   resetGame: () => {
-    const { game, animationFrameId } = get();
+    const { worker, animationFrameId } = get();
     if (animationFrameId) {
       cancelAnimationFrame(animationFrameId);
     }
-    if (game) {
-      game.reset();
+    if (worker) {
+      worker.postMessage({ type: 'RESET' });
     }
     set({ isRunning: false, animationFrameId: null, tick: 0 });
   },
 
   setSpeed: (speed: number) => {
-    const { game } = get();
-    if (game) {
-      const config = game.getConfig();
-      config.speed = speed;
-      set({ speed });
-    }
+    set({ speed });
   },
 
   setDirection: (direction: Direction) => {
-    const { game } = get();
-    if (game) {
-      game.setDirection(direction);
+    const { worker } = get();
+    if (worker) {
+      worker.postMessage({ type: 'SET_DIRECTION', payload: { direction } });
     }
   },
 
@@ -147,32 +223,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   compileAndSetScript: () => {
-    const { game, userCode } = get();
-    if (!game) return;
+    const { worker, userCode } = get();
+    if (!worker) return;
 
-    try {
-      // Create a safe function from user code
-      const scriptFunction = new Function('ctx', 'Direction', `
-        ${userCode}
-        return main(ctx);
-      `) as (ctx: any, Direction: any) => string;
-
-      const wrappedFunction: UserScriptFunction = (ctx) => {
-        const result = scriptFunction(ctx, Direction);
-        return result as Direction;
-      };
-
-      game.setUserScript(wrappedFunction);
-    } catch (error) {
-      console.error('Error compiling script:', error);
-      alert('Error in your script: ' + (error as Error).message);
-    }
+    worker.postMessage({ type: 'SET_SCRIPT', payload: { code: userCode } });
   },
 
   skipMoves: (count: number) => {
-    const { game } = get();
-    if (!game) return;
+    const { worker, animationFrameId, isSkipping } = get();
+    if (!worker || isSkipping) return; // Prevent double skip
 
-    game.skipMoves(count);
+    // Stop game loop temporarily
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      set({ animationFrameId: null });
+    }
+
+    set({ isSkipping: true, skipProgress: 0 });
+
+    // Send skip message to worker (runs in background thread)
+    worker.postMessage({ type: 'SKIP_MOVES', payload: { count } });
   },
 }));
