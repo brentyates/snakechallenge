@@ -142,13 +142,57 @@ class WorkerSnakeGame {
           RIGHT: 'RIGHT' as const,
         });
 
+        // Create console proxy that forwards to main thread
+        const debugConsole = {
+          log: (...args: any[]) => {
+            self.postMessage({
+              type: 'CONSOLE_LOG',
+              payload: { level: 'log', args }
+            });
+          },
+          error: (...args: any[]) => {
+            self.postMessage({
+              type: 'CONSOLE_LOG',
+              payload: { level: 'error', args }
+            });
+          },
+          warn: (...args: any[]) => {
+            self.postMessage({
+              type: 'CONSOLE_LOG',
+              payload: { level: 'warn', args }
+            });
+          },
+          info: (...args: any[]) => {
+            self.postMessage({
+              type: 'CONSOLE_LOG',
+              payload: { level: 'info', args }
+            });
+          },
+        };
+
+        // Execute with custom console
+        const originalConsole = (globalThis as any).console;
+        (globalThis as any).console = debugConsole;
+
         const result = this.userScript(ctx, Direction);
+
+        // Restore original console
+        (globalThis as any).console = originalConsole;
         // Security: Validate return value before applying
         if (result && this.isValidDirection(result)) {
           this.setDirection(result);
         }
       } catch (error) {
-        console.error('Error executing user script:', error);
+        // Forward error to main thread for better visibility
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorStack = error instanceof Error ? error.stack : undefined;
+        self.postMessage({
+          type: 'SCRIPT_ERROR',
+          payload: {
+            message: errorMessage,
+            stack: errorStack
+          }
+        });
       }
     }
 

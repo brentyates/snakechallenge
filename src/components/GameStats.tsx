@@ -4,7 +4,18 @@ export function GameStats() {
   const gameState = useGameStore((state) => state.gameState);
   useGameStore((state) => state.tick); // Subscribe to tick for updates
 
-  if (!gameState) return null;
+  if (!gameState) {
+    return (
+      <div className="stat-card w-full">
+        <h3 className="text-lg font-bold mb-4 text-snake-primary">Game Stats</h3>
+        <div className="space-y-2">
+          <div className="text-center py-8 text-gray-500">
+            <p className="text-sm">Start the game to see stats</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const boardWidth = 40;
   const boardHeight = 30;

@@ -6,6 +6,7 @@ import { GameControls } from './components/GameControls';
 import { CodeEditor } from './components/CodeEditor';
 import { Documentation } from './components/Documentation';
 import { Leaderboard } from './components/Leaderboard';
+import { ScriptErrorDisplay } from './components/ScriptErrorDisplay';
 import { useGameStore } from './store/gameStore';
 
 type View = 'game' | 'leaderboard' | 'documentation';
@@ -49,6 +50,9 @@ function App() {
 
       {currentView === 'documentation' && <Documentation />}
       {currentView === 'leaderboard' && <Leaderboard />}
+
+      {/* Script Error Display - shows as toast notification */}
+      <ScriptErrorDisplay />
 
       <footer className="bg-gray-900 border-t border-gray-800 mt-12 py-6">
         <div className="container mx-auto px-4 text-center text-gray-400 text-sm">

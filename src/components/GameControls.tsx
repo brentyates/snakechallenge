@@ -2,20 +2,14 @@ import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 
 export function GameControls() {
-  const { isRunning, speed, isSkipping, skipProgress, startGame, stopGame, resetGame, setSpeed, compileAndSetScript, skipMoves } = useGameStore();
+  const { isRunning, speed, isSkipping, skipProgress, startGame, stopGame, resetGame, setSpeed, skipMoves, compileAndSetScript } = useGameStore();
   const [movesToSkip, setMovesToSkip] = useState(100);
   const [showOptions, setShowOptions] = useState(false);
 
   const handleStart = () => {
+    // Ensure script is compiled before starting
     compileAndSetScript();
     startGame();
-  };
-
-  const handleSkipMoves = () => {
-    if (!isRunning) {
-      compileAndSetScript();
-    }
-    skipMoves(movesToSkip);
   };
 
   return (
@@ -43,14 +37,6 @@ export function GameControls() {
           disabled={isSkipping}
         >
           Options {showOptions ? '▲' : '▼'}
-        </button>
-
-        <button
-          onClick={compileAndSetScript}
-          className="btn-secondary"
-          disabled={isRunning || isSkipping}
-        >
-          Set Script
         </button>
       </div>
 
@@ -84,7 +70,7 @@ export function GameControls() {
               value={speed}
               onChange={(e) => setSpeed(Number(e.target.value))}
               className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
-              disabled={isRunning}
+              disabled={isSkipping}
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>Slow</span>
@@ -106,7 +92,7 @@ export function GameControls() {
                 max="10000"
               />
               <button
-                onClick={handleSkipMoves}
+                onClick={() => skipMoves(movesToSkip)}
                 className="btn-secondary whitespace-nowrap"
               >
                 Skip

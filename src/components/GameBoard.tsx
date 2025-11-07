@@ -13,7 +13,7 @@ export function GameBoard() {
 
   // Redraw canvas whenever tick changes
   useEffect(() => {
-    if (!canvasRef.current || !gameState) return;
+    if (!canvasRef.current) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -22,6 +22,41 @@ export function GameBoard() {
     // Clear canvas
     ctx.fillStyle = '#1e293b';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // If no game state, show placeholder
+    if (!gameState) {
+      // Draw grid
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 0.5;
+      for (let x = 0; x <= boardWidth; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * cellSize, 0);
+        ctx.lineTo(x * cellSize, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= boardHeight; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * cellSize);
+        ctx.lineTo(canvas.width, y * cellSize);
+        ctx.stroke();
+      }
+
+      // Draw placeholder message
+      ctx.fillStyle = '#64748b';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🐍', canvas.width / 2, canvas.height / 2 - 40);
+
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('Ready to play!', canvas.width / 2, canvas.height / 2 - 5);
+
+      ctx.font = '14px sans-serif';
+      ctx.fillStyle = '#64748b';
+      ctx.fillText('Click "Start" to begin', canvas.width / 2, canvas.height / 2 + 20);
+
+      return;
+    }
 
     // Draw grid
     ctx.strokeStyle = '#334155';

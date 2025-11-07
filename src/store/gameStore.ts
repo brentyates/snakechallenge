@@ -12,6 +12,7 @@ interface GameStore {
   tick: number;
   isSkipping: boolean;
   skipProgress: number;
+  scriptError: string | null;
 
   initGame: (config: GameConfig) => void;
   startGame: () => void;
@@ -22,6 +23,7 @@ interface GameStore {
   setUserCode: (code: string) => void;
   compileAndSetScript: () => void;
   skipMoves: (count: number) => void;
+  clearScriptError: () => void;
 }
 
 const DEFAULT_CONFIG: GameConfig = {
@@ -43,10 +45,16 @@ const DEFAULT_USER_CODE = `// Welcome to Snake Challenge!
 //
 // Return Direction.UP, Direction.DOWN, Direction.LEFT, or Direction.RIGHT
 // Or use ctx.setDirection(direction)
+//
+// 💡 Debugging: Your console.log() messages appear in browser console (F12)
+// prefixed with 🤖 [Your Script]
 
 function main(ctx) {
   const head = ctx.getHead();
   const food = ctx.getFood();
+
+  // Uncomment to see debug output:
+  // console.log('Head:', head, 'Food:', food);
 
   // Simple AI: move towards food
   if (head.x < food.x) {
@@ -71,6 +79,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   tick: 0,
   isSkipping: false,
   skipProgress: 0,
+  scriptError: null,
 
   initGame: (config: GameConfig) => {
     // Terminate existing worker if any (prevent memory leaks)
@@ -87,17 +96,42 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Set up message handler
     worker.onmessage = (event) => {
-      const { type, state, current, total, error } = event.data;
+      const { type, state, current, total, payload } = event.data;
 
       switch (type) {
         case 'INITIALIZED':
           console.log('Worker initialized');
           break;
 
+        case 'CONSOLE_LOG':
+          // Forward console messages from worker to main thread
+          const { level, args } = payload;
+          const prefix = '🤖 [Your Script]';
+          if (level === 'error') {
+            console.error(prefix, ...args);
+          } else if (level === 'warn') {
+            console.warn(prefix, ...args);
+          } else if (level === 'info') {
+            console.info(prefix, ...args);
+          } else {
+            console.log(prefix, ...args);
+          }
+          break;
+
+        case 'SCRIPT_ERROR':
+          // Display script errors in UI
+          const errorMsg = `${payload.message}\n${payload.stack || ''}`;
+          set({ scriptError: errorMsg });
+          console.error('🤖 [Your Script] Error:', payload.message);
+          if (payload.stack) {
+            console.error(payload.stack);
+          }
+          break;
+
         case 'STARTED':
         case 'STATE_UPDATE':
         case 'RESET_COMPLETE':
-          set({ gameState: state, tick: get().tick + 1 });
+          set({ gameState: state, tick: get().tick + 1, scriptError: null });
           if (state.isGameOver) {
             set({ isRunning: false });
           }
@@ -134,11 +168,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
         case 'SCRIPT_SET':
           console.log('Script compiled successfully');
-          break;
-
-        case 'SCRIPT_ERROR':
-          console.error('Script error:', error);
-          alert('Error in your script: ' + error);
           break;
 
         default:
@@ -243,5 +272,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Send skip message to worker (runs in background thread)
     worker.postMessage({ type: 'SKIP_MOVES', payload: { count } });
+  },
+
+  clearScriptError: () => {
+    set({ scriptError: null });
   },
 }));
