@@ -20,7 +20,7 @@ export function GameControls() {
           className="btn-primary"
           disabled={isSkipping}
         >
-          {isRunning ? 'Stop' : 'Start'}
+          {isRunning ? 'Pause' : 'Play'}
         </button>
 
         <button
@@ -28,7 +28,7 @@ export function GameControls() {
           className="btn-secondary"
           disabled={isRunning || isSkipping}
         >
-          Reset
+          New Game
         </button>
 
         <button
@@ -40,11 +40,11 @@ export function GameControls() {
         </button>
       </div>
 
-      {/* Skip Progress Bar */}
+      {/* Fast Forward Progress Bar */}
       {isSkipping && (
         <div className="stat-card">
           <div className="mb-2 text-sm text-gray-300">
-            Skipping moves... {skipProgress}%
+            Fast forwarding... {skipProgress}%
           </div>
           <div className="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
             <div
@@ -80,7 +80,7 @@ export function GameControls() {
 
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-300">
-              Skip Moves
+              Fast Forward
             </label>
             <div className="flex gap-2">
               <input
@@ -90,16 +90,17 @@ export function GameControls() {
                 className="flex-1 bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-snake-primary"
                 min="1"
                 max="10000"
+                placeholder="Number of moves"
               />
               <button
                 onClick={() => skipMoves(movesToSkip)}
                 className="btn-secondary whitespace-nowrap"
               >
-                Skip
+                Run
               </button>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              💡 Skip runs in background - UI stays responsive!
+              💡 Runs in background - UI stays responsive!
             </p>
           </div>
         </div>

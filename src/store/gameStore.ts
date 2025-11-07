@@ -186,7 +186,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   startGame: () => {
-    const { worker, animationFrameId, isSkipping } = get();
+    const { worker, animationFrameId, isSkipping, gameState } = get();
     if (!worker || isSkipping) return;
 
     // Cancel any existing animation frame
@@ -194,9 +194,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
       cancelAnimationFrame(animationFrameId);
     }
 
-    // Reset game
-    worker.postMessage({ type: 'START' });
-    set({ isRunning: true, tick: 0 });
+    // Only reset game on first start (no existing state or zero moves)
+    // This prevents resetting after skip operations
+    if (!gameState || gameState.moves === 0) {
+      worker.postMessage({ type: 'START' });
+      set({ isRunning: true, tick: 0 });
+    } else {
+      // Resume from current state without resetting
+      set({ isRunning: true });
+    }
 
     const gameLoop = () => {
       const { worker, isRunning, speed, isSkipping } = get();
