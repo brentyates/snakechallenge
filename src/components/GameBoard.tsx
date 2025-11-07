@@ -5,7 +5,9 @@ import type { Position } from '../types/game';
 export function GameBoard() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const game = useGameStore((state) => state.game);
+  const tick = useGameStore((state) => state.tick); // Subscribe to tick for updates
 
+  // Redraw canvas whenever tick changes (i.e., on every game update)
   useEffect(() => {
     if (!canvasRef.current || !game) return;
 
@@ -36,7 +38,6 @@ export function GameBoard() {
       ctx.stroke();
     }
 
-    // Draw food
     const drawCell = (pos: Position, color: string, rounded = false) => {
       const x = pos.x * config.cellSize;
       const y = pos.y * config.cellSize;
@@ -57,7 +58,7 @@ export function GameBoard() {
     // Draw food
     drawCell(state.food, '#ef4444', true);
 
-    // Draw snake
+    // Draw snake with gradient
     state.snake.forEach((segment, index) => {
       const brightness = 255 - Math.floor((index / state.snake.length) * 100);
       const color = index === 0
@@ -80,44 +81,7 @@ export function GameBoard() {
       ctx.fillText(`Score: ${state.score.toFixed(2)}`, canvas.width / 2, canvas.height / 2 + 10);
       ctx.fillText(`Food Eaten: ${state.foodEaten}`, canvas.width / 2, canvas.height / 2 + 35);
     }
-
-  }, [game]);
-
-  // Animation loop
-  useEffect(() => {
-    let animationId: number;
-
-    const animate = () => {
-      animationId = requestAnimationFrame(animate);
-      // Trigger re-render which will redraw canvas
-      if (canvasRef.current && game) {
-        const event = new CustomEvent('game-tick');
-        canvasRef.current.dispatchEvent(event);
-      }
-    };
-
-    animationId = requestAnimationFrame(animate);
-
-    return () => {
-      cancelAnimationFrame(animationId);
-    };
-  }, [game]);
-
-  // Listen for game ticks to trigger re-renders
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const handleTick = () => {
-      // Force re-render by updating a dummy state
-      if (game) {
-        // The component will re-render and the useEffect above will redraw
-      }
-    };
-
-    canvas.addEventListener('game-tick', handleTick);
-    return () => canvas.removeEventListener('game-tick', handleTick);
-  }, [game]);
+  }, [game, tick]); // Redraw when game or tick changes
 
   const config = game?.getConfig() || { boardWidth: 40, boardHeight: 30, cellSize: 8 };
 

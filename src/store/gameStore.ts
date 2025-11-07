@@ -9,6 +9,7 @@ interface GameStore {
   speed: number;
   userCode: string;
   animationFrameId: number | null;
+  tick: number; // Increments on each game loop to trigger re-renders
 
   initGame: (config: GameConfig) => void;
   startGame: () => void;
@@ -64,6 +65,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   speed: DEFAULT_CONFIG.speed,
   userCode: DEFAULT_USER_CODE,
   animationFrameId: null,
+  tick: 0,
 
   initGame: (config: GameConfig) => {
     const game = new SnakeGame(config);
@@ -88,6 +90,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!game || !isRunning) return;
 
       game.update(timestamp);
+      set({ tick: get().tick + 1 }); // Increment tick to trigger re-renders
 
       if (!game.getState().isGameOver) {
         const frameId = requestAnimationFrame(gameLoop);
@@ -120,7 +123,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (game) {
       game.reset();
     }
-    set({ isRunning: false, animationFrameId: null });
+    set({ isRunning: false, animationFrameId: null, tick: 0 });
   },
 
   setSpeed: (speed: number) => {
@@ -128,8 +131,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (game) {
       const config = game.getConfig();
       config.speed = speed;
-      const newGame = new SnakeGame(config);
-      set({ game: newGame, speed });
+      set({ speed });
     }
   },
 

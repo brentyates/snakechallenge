@@ -2,6 +2,8 @@ import { useGameStore } from '../store/gameStore';
 
 export function GameStats() {
   const game = useGameStore((state) => state.game);
+  useGameStore((state) => state.tick); // Subscribe to tick for updates
+
   const state = game?.getState();
   const config = game?.getConfig();
 
