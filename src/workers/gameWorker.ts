@@ -3,6 +3,18 @@
 
 import type { GameConfig, Direction } from '../types/game';
 
+// Security: Deep freeze helper to prevent user scripts from modifying game state
+function deepFreeze<T>(obj: T): T {
+  Object.freeze(obj);
+  Object.getOwnPropertyNames(obj).forEach(prop => {
+    const value = (obj as any)[prop];
+    if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+      deepFreeze(value);
+    }
+  });
+  return obj;
+}
+
 interface Position {
   x: number;
   y: number;
@@ -27,6 +39,11 @@ class WorkerSnakeGame {
   constructor(config: GameConfig) {
     this.config = config;
     this.state = this.initializeGame();
+  }
+
+  // Security: Validate direction to prevent invalid values
+  private isValidDirection(value: any): value is Direction {
+    return value === 'UP' || value === 'DOWN' || value === 'LEFT' || value === 'RIGHT';
   }
 
   private initializeGame(): WorkerGameState {
@@ -105,28 +122,30 @@ class WorkerSnakeGame {
     // Execute user script if available
     if (this.userScript) {
       try {
-        const ctx = {
-          getHead: () => ({ ...this.state.snake[0] }),
-          getFood: () => ({ ...this.state.food }),
-          getDirection: () => this.state.direction,
-          getSnake: () => this.state.snake.map(pos => ({ ...pos })),
-          getBoardSize: () => ({
+        // Security: Create sandboxed context with deep-frozen objects
+        const ctx = Object.freeze({
+          getHead: () => deepFreeze({ ...this.state.snake[0] }),
+          getFood: () => deepFreeze({ ...this.state.food }),
+          getDirection: () => this.state.direction, // Primitive, already immutable
+          getSnake: () => deepFreeze(this.state.snake.map(pos => ({ ...pos }))),
+          getBoardSize: () => deepFreeze({
             width: this.config.boardWidth,
             height: this.config.boardHeight,
           }),
           setDirection: (dir: Direction) => this.setDirection(dir),
-        };
+        });
 
-        const Direction = {
-          UP: 'UP',
-          DOWN: 'DOWN',
-          LEFT: 'LEFT',
-          RIGHT: 'RIGHT',
-        };
+        const Direction = Object.freeze({
+          UP: 'UP' as const,
+          DOWN: 'DOWN' as const,
+          LEFT: 'LEFT' as const,
+          RIGHT: 'RIGHT' as const,
+        });
 
         const result = this.userScript(ctx, Direction);
-        if (result) {
-          this.setDirection(result as Direction);
+        // Security: Validate return value before applying
+        if (result && this.isValidDirection(result)) {
+          this.setDirection(result);
         }
       } catch (error) {
         console.error('Error executing user script:', error);
