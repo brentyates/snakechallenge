@@ -7,7 +7,8 @@ interface GameStore {
   gameState: GameState | null;
   isRunning: boolean;
   speed: number;
-  userCode: string;
+  userCode: string; // Code being edited
+  activeScript: string; // Code currently running in the game
   animationFrameId: number | null;
   tick: number;
   isSkipping: boolean;
@@ -22,6 +23,7 @@ interface GameStore {
   setDirection: (direction: Direction) => void;
   setUserCode: (code: string) => void;
   compileAndSetScript: () => void;
+  applyScriptToRunningGame: () => void; // Apply edited code to running game
   skipMoves: (count: number) => void;
   clearScriptError: () => void;
 }
@@ -75,6 +77,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isRunning: false,
   speed: DEFAULT_CONFIG.speed,
   userCode: DEFAULT_USER_CODE,
+  activeScript: DEFAULT_USER_CODE, // Initially same as userCode
   animationFrameId: null,
   tick: 0,
   isSkipping: false,
@@ -262,6 +265,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!worker) return;
 
     worker.postMessage({ type: 'SET_SCRIPT', payload: { code: userCode } });
+    // Update activeScript to match what's now running
+    set({ activeScript: userCode, scriptError: null });
+  },
+
+  applyScriptToRunningGame: () => {
+    // This applies edited code to a running game
+    const { worker, userCode } = get();
+    if (!worker) return;
+
+    worker.postMessage({ type: 'SET_SCRIPT', payload: { code: userCode } });
+    // Update activeScript to match what's now running
+    set({ activeScript: userCode, scriptError: null });
+
+    console.log('✅ Script updated in running game');
   },
 
   skipMoves: (count: number) => {

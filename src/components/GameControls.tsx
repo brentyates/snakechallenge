@@ -2,14 +2,40 @@ import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 
 export function GameControls() {
-  const { isRunning, speed, isSkipping, skipProgress, startGame, stopGame, resetGame, setSpeed, skipMoves, compileAndSetScript } = useGameStore();
+  const {
+    isRunning,
+    speed,
+    isSkipping,
+    skipProgress,
+    userCode,
+    activeScript,
+    startGame,
+    stopGame,
+    resetGame,
+    setSpeed,
+    skipMoves,
+    compileAndSetScript
+  } = useGameStore();
   const [movesToSkip, setMovesToSkip] = useState(100);
   const [showOptions, setShowOptions] = useState(false);
 
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = userCode.trim() !== activeScript.trim();
+
   const handleStart = () => {
-    // Ensure script is compiled before starting
-    compileAndSetScript();
+    // Only compile if there are changes that need to be applied
+    if (hasUnsavedChanges) {
+      compileAndSetScript();
+    }
     startGame();
+  };
+
+  const handleNewGame = () => {
+    // Apply any unsaved changes before starting new game
+    if (hasUnsavedChanges) {
+      compileAndSetScript();
+    }
+    resetGame();
   };
 
   return (
@@ -17,16 +43,16 @@ export function GameControls() {
       <div className="flex flex-wrap gap-3">
         <button
           onClick={isRunning ? stopGame : handleStart}
-          className="btn-primary"
+          className="btn-primary text-lg px-6 py-3"
           disabled={isSkipping}
         >
           {isRunning ? 'Pause' : 'Play'}
         </button>
 
         <button
-          onClick={resetGame}
-          className="btn-secondary"
-          disabled={isRunning || isSkipping}
+          onClick={handleNewGame}
+          className="btn-secondary text-lg px-6 py-3"
+          disabled={isSkipping}
         >
           New Game
         </button>
@@ -39,6 +65,18 @@ export function GameControls() {
           Options {showOptions ? '▲' : '▼'}
         </button>
       </div>
+
+      {/* Visual feedback for script state */}
+      {!isRunning && hasUnsavedChanges && (
+        <div className="text-sm text-yellow-400 px-2">
+          💡 Your edited script will be used when you click Play
+        </div>
+      )}
+      {!isRunning && !hasUnsavedChanges && (
+        <div className="text-sm text-green-400 px-2">
+          ✓ Script is ready to run
+        </div>
+      )}
 
       {/* Fast Forward Progress Bar */}
       {isSkipping && (

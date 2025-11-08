@@ -3,8 +3,18 @@ import Editor from '@monaco-editor/react';
 import { useGameStore } from '../store/gameStore';
 
 export function CodeEditor() {
-  const { userCode, setUserCode, compileAndSetScript } = useGameStore();
+  const {
+    userCode,
+    activeScript,
+    isRunning,
+    setUserCode,
+    compileAndSetScript,
+    applyScriptToRunningGame
+  } = useGameStore();
   const debounceTimerRef = useRef<number | null>(null);
+
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = userCode.trim() !== activeScript.trim();
 
   const handleCodeChange = (value: string | undefined) => {
     const newCode = value || '';
@@ -15,10 +25,13 @@ export function CodeEditor() {
       clearTimeout(debounceTimerRef.current);
     }
 
-    // Set new timer to auto-compile after 1 second of no changes
-    debounceTimerRef.current = setTimeout(() => {
-      compileAndSetScript();
-    }, 1000);
+    // Only auto-compile if game is NOT running
+    // When running, user must explicitly click "Apply Changes"
+    if (!isRunning) {
+      debounceTimerRef.current = setTimeout(() => {
+        compileAndSetScript();
+      }, 1000);
+    }
   };
 
   // Cleanup timer on unmount
@@ -32,6 +45,71 @@ export function CodeEditor() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* PROMINENT STATUS BANNER */}
+      {isRunning && hasUnsavedChanges && (
+        <div className="bg-orange-900 border-2 border-orange-500 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="text-2xl">⚠️</div>
+              <div>
+                <div className="text-lg font-bold text-orange-200">You have unsaved changes</div>
+                <div className="text-sm text-orange-300">
+                  The code you're editing is NOT what's currently running in the game
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={applyScriptToRunningGame}
+              className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg text-lg transition-colors"
+            >
+              Apply Changes to Running Game
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isRunning && !hasUnsavedChanges && (
+        <div className="bg-green-900 border-2 border-green-500 px-4 py-2">
+          <div className="flex items-center gap-3">
+            <div className="text-xl">✅</div>
+            <div>
+              <div className="text-base font-bold text-green-200">This script is actively running</div>
+              <div className="text-sm text-green-300">
+                Any changes you make will need to be applied with the button above
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isRunning && hasUnsavedChanges && (
+        <div className="bg-yellow-900 border-2 border-yellow-500 px-4 py-2">
+          <div className="flex items-center gap-3">
+            <div className="text-xl">📝</div>
+            <div>
+              <div className="text-base font-bold text-yellow-200">Script modified - auto-saving...</div>
+              <div className="text-sm text-yellow-300">
+                Will be ready when you click Play
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isRunning && !hasUnsavedChanges && (
+        <div className="bg-blue-900 border-2 border-blue-500 px-4 py-2">
+          <div className="flex items-center gap-3">
+            <div className="text-xl">💾</div>
+            <div>
+              <div className="text-base font-bold text-blue-200">Script ready</div>
+              <div className="text-sm text-blue-300">
+                Click Play to run this script
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-lg font-bold text-snake-primary">Your Script</h3>
